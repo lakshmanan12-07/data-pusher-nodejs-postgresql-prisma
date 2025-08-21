@@ -1,0 +1,150 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(uuid()) @map("user_id")
+  email          String          @unique
+  password       String
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  deleted        Boolean         @default(false)
+  createdBy      Account[]       @relation(name: "created_by")
+  updatedBy      Account[]       @relation(name: "updated_by")
+  accountMembers AccountMember[]
+  jwtTokens      JwtToken[]
+
+  @@map("user")
+}
+
+model Role {
+  id             String          @id @default(uuid()) @map("role_id")
+  name           UserRole
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  deleted        Boolean         @default(false)
+  accountMembers AccountMember[]
+
+  @@map("role")
+}
+
+model Account {
+  id             String          @id @default(uuid()) @map("account_id")
+  name           String
+  appSecret      String          @default(uuid()) @map("app_secret")
+  website        String?
+  createdById    String          @map("created_by_id")
+  createdBy      User            @relation(references: [id], fields: [createdById], name: "created_by")
+  updatedById    String          @map("updated_by_id")
+  updatedBy      User            @relation(references: [id], fields: [updatedById], name: "updated_by")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  deleted        Boolean         @default(false)
+  destinations   Destination[]
+  accountMembers AccountMember[]
+  logs           Log[]
+
+  @@map("account")
+}
+
+model Destination {
+  id         String              @id @default(uuid()) @map("destination_id")
+  url        String
+  httpMethod HttpMethod          @map("http_method")
+  accountId  String              @map("account_id")
+  account    Account             @relation(references: [id], fields: [accountId])
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+  createdAt  DateTime            @default(now()) @map("created_at")
+  deleted    Boolean             @default(false)
+  headers    DestinationHeader[]
+  logs       Log[]
+
+  @@map("destination")
+}
+
+model DestinationHeader {
+  id            String      @id @default(uuid()) @map("destination_header_id")
+  key           String
+  value         String
+  destinationId String      @map("destination_id")
+  destination   Destination @relation(references: [id], fields: [destinationId])
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  deleted       Boolean     @default(false)
+
+  @@map("destination_header")
+}
+
+model AccountMember {
+  id        String   @id @default(uuid()) @map("account_member_id")
+  roleId    String   @map("role_id")
+  role      Role     @relation(references: [id], fields: [roleId])
+  accountId String   @map("account_id")
+  account   Account  @relation(references: [id], fields: [accountId])
+  userId    String   @map("user_id")
+  user      User     @relation(references: [id], fields: [userId])
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  deleted   Boolean  @default(false)
+
+  @@map("account_member")
+}
+
+model Log {
+  id            String      @id @default(uuid()) @map("log_id")
+  eventId       String      @unique @map("event_id")
+  receivedData  Json        @map("received_data")
+  accountId     String      @map("account_id")
+  account       Account     @relation(references: [id], fields: [accountId])
+  destinationId String      @map("destination_id")
+  destination   Destination @relation(references: [id], fields: [destinationId])
+  processedAt   DateTime?   @map("processed_at")
+  receivedAt    DateTime    @map("received_at")
+  status        LogStatus
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  deleted       Boolean     @default(false)
+
+  @@map("log")
+}
+
+model JwtToken {
+  id           String   @id @default(uuid()) @map("jwt_token_id")
+  accessToken  String   @map("access_token")
+  refreshToken String   @map("refresh_token")
+  userId       String   @map("user_id")
+  user         User     @relation(references: [id], fields: [userId])
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  deleted      Boolean  @default(false)
+
+  @@map("jwt_token")
+}
+
+enum HttpMethod {
+  POST
+  GET
+  DELETE
+  PUT
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum LogStatus {
+  SUCCESS
+  FAILED
+}
